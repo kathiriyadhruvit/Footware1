@@ -1,0 +1,42 @@
+<?php
+// 1. Connect to database
+$conn = new mysqli('localhost','root','','simple_shop');
+if ($conn->connect_error) die("DB Error: " . $conn->connect_error);
+
+// 2. Create table if not exists
+$conn->query("CREATE TABLE IF NOT EXISTS products (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(100),
+  descr TEXT,
+  price DECIMAL(10,2),
+  image VARCHAR(255)
+)");
+
+// 3. Handle form submission
+if ($_SERVER['REQUEST_METHOD']=='POST' && isset($_FILES['image'])) {
+  $f = $_FILES['image'];
+  $ext = strtolower(pathinfo($f['name'], PATHINFO_EXTENSION));
+  $allowed = ['jpg','jpeg','png','gif'];
+  if (!in_array($ext, $allowed)) die("Invalid type.");
+  if ($f['size'] > 5*1024*1024) die("File > 5 MB not allowed.");  // size limit example
+  $fname = uniqid('img_').'.'.$ext;
+  if ( !move_uploaded_file($f['tmp_name'], __DIR__.'/uploads/'.$fname) )
+    die("Upload failed.");
+  $stmt = $conn->prepare("INSERT INTO products (title,descr,price,image) VALUES (?,?,?,?)");
+  $stmt->bind_param("ssds", $_POST['title'], $_POST['descr'], $_POST['price'], $fname);
+  $stmt->execute();
+  header('Location: admin.php');
+  exit;
+}
+?>
+<!DOCTYPE html>
+<html><body>
+<h2>Add Product</h2>
+<form method="post" enctype="multipart/form-data">
+  Title:<br><input name="title" required><br>
+  Description:<br><textarea name="descr"></textarea><br>
+  Price:<br><input name="price" type="number" step="0.01" required><br>
+  Image:<br><input name="image" type="file" accept="image/*" required><br><br>
+  <button type="submit">Upload</button>
+</form>
+</body></html>
